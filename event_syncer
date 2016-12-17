@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+# -*- coding: utf8 -*-
+
+import argparse
+from datetime import datetime
+
+from event_tools.config import *
+from event_tools import event_utils
+from event_tools import facebook_api
+from event_tools import google_calendar
+
+def get_fb_events():
+    fb = facebook_api.FacebookAPI(FB_GRAPH_TOKEN)
+    events = fb.get_events(group_id=FB_GROUP_ID,
+                         start_date=datetime.now())
+    return events
+
+def prepare_subscribers():
+    subscribers = []
+    subscribers.append(
+        google_calendar.GoogleCalendar(
+            event_gateway=GROUP_NAME,
+            calendar_id=GOOGLE_CALENDAR_ID,
+            attendees=[GOOGLE_MAILLIST]))
+
+
+    return subscribers
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--source', action='store', default='facebook',
+                        help='source of events')
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+
+    # create publisher
+    if args.source == 'facebook':
+        events = get_fb_events()
+
+    print('Found {} new events'.format(len(events)))
+    # create subscribers
+    subs = prepare_subscribers()
+
+    # prepare gateway then notify events
+    gway = event_utils.get_event_gateway(GROUP_NAME)
+    print('Send events')
+    for evt in events:
+        gway.update_event(evt)
+
+if __name__ == '__main__':
+    main()
